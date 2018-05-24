@@ -1,0 +1,140 @@
+---
+title: "ReproducibleResearch_Week2_Project1"
+author: "r.c.subhashini@accenture.com"
+date: "May 23, 2018"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+## Load the data (i.e. \color{red}{\verb|read.csv()|}read.csv())
+##### Process/transform the data (if necessary) into a format suitable for your analysis
+
+```{r}
+library(dplyr)
+library(ggplot2)
+activity <- read.csv("C:\\Users\\r.c.subhashini\\Desktop\\Reproducible_Research_Course_Project\\RepData_PeerAssessment1\\activity.csv")
+str(activity)
+summary(activity)
+head(activity)
+```
+
+
+# What is mean total number of steps taken per day?
+##### For this part of the assignment, you can ignore the missing values in the dataset.
+##### 1.Calculate the total number of steps taken per day
+```{r}
+steps <- aggregate(activity$steps, by = list(Date = activity$date), FUN = sum)
+library(ggplot2)
+names(steps)[names(steps) == "x"] <- "Total"
+temp <- as.Date(steps$Date, "%Y-%m-%d")
+steps$Date <- format(temp, format = "%m-%d")
+head(steps)
+```
+
+##### 2.If you do not understand the difference between a histogram and a barplot, research the difference between them. Make a histogram of the total number of steps taken each day
+
+```{r}
+histogram <- ggplot(data = na.omit(steps), aes(Total)) + 
+  geom_histogram(binwidth = 1500, colour = "white") +
+  xlab("Total Number of Steps Taken Each Day") +
+  ylab("Count") +
+  ggtitle("Histogram of the Total Number of Steps Taken Each Day - SUbhashini")
+print(histogram)
+```
+
+##### 3.Calculate and report the mean and median of the total number of steps taken per day
+```{r}
+mean(na.omit(steps$Total))
+median(na.omit(steps$Total))
+```
+#--------------------------------------------------------------------
+# What is the average daily activity pattern?
+##### 1.Make a time series plot (i.e. \color{red}{\verb|type = "l"|}type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+```{r}
+five_min_steps <- aggregate(steps ~ interval, data = activity, FUN =mean)
+TimeSeries_one <- ggplot(data = five_min_steps, aes(x = interval, y = steps)) + 
+  geom_line() +
+  xlab("Time Intervals (5 Minutes is an unit)") + 
+  ylab("Total Number of Steps") +
+  ggtitle("Average Number of Steps Taken of the 5-Minute Interval")
+print(TimeSeries_one)
+```
+
+##### 2.Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r}
+five_min_steps[which(five_min_steps$steps == max(five_min_steps$steps)),]
+```
+
+#--------------------------------------------------------------------
+
+##### Imputing missing values
+##### Note that there are a number of days/intervals where there are missing values (coded as \color{red}{\verb|NA|}NA). The presence of missing days may introduce bias into some calculations or summaries of the data.
+
+##### 1.Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with \color{red}{\verb|NA|}NAs)
+```{r}
+sapply(X = activity, FUN = function(x) sum(is.na(x)))
+```
+
+##### 2.Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+```{r}
+replace_with_mean <- function(num) replace(num, is.na(num), mean(num, na.rm = TRUE))
+meanday <- (activity %>% group_by(interval) %>% mutate(steps = replace_with_mean(steps)))
+head(meanday)
+sum(is.na(meanday))
+```
+
+##### 3.Create a new dataset that is equal to the original dataset but with the missing data filled in.
+```{r}
+new_dataset <- as.data.frame(meanday)
+head(new_dataset)
+summary(new_dataset)
+```
+     
+##### 4.Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+```{r}
+new_steps <- aggregate(new_dataset$steps, by = list(new_dataset$date), FUN = sum)
+names(new_steps)[names(new_steps) == "x"] <- "Total"
+names(new_steps)[names(new_steps) == "Group.1"] <- "Date"
+histogram2 <- ggplot(data = new_steps, aes(Total)) + 
+  geom_histogram(binwidth = 1500, colour = "white") +
+  xlab("Total Number of Steps Taken Each Day") +
+  ylab("Count") +
+  ggtitle("Histogram of the Total Number of Steps Taken Each Day with New Version Dataset")
+print(histogram2)
+
+##### lest compare the plots
+library(grid)
+library(gridExtra)
+
+grid.arrange(histogram, histogram2, ncol = 2)
+
+mean(na.omit(steps$Total))
+median(na.omit(steps$Total))
+mean(new_steps$Total)
+median(new_steps$Total)
+```
+#----------------------------------------------------------------------------------------------
+
+##### Are there differences in activity patterns between weekdays and weekends?
+#####   For this part the \color{red}{\verb|weekdays()|}weekdays() function may be of some help here. Use the dataset with the filled-in missing values for this part.
+
+##### 1. Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
+```{r}
+new_dataset$WeekendOrWeekday <- ifelse(weekdays(as.Date(new_dataset$date)) %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"), "Weekday", "Weekend")
+head(new_dataset)
+```
+
+##### 2. Make a panel plot containing a time series plot (i.e. \color{red}{\verb|type = "l"|}type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+```{r}
+new_dataset <- (new_dataset %>% group_by(interval, WeekendOrWeekday) %>% summarise(Mean = mean(steps)))
+ggplot(new_dataset, mapping = aes(x = interval, y = Mean)) + geom_line() +
+  facet_grid(WeekendOrWeekday ~.) + xlab("Interval") + ylab("Mean of Steps") +
+  ggtitle("Comparison of Average Number of Steps in Each Interval")
+```
+### Inference:
+###### There are differences in the activity patterns of weekdays and weekends.
+###### During weekends, people tend to get up late and stay up late. 
+###### On weekends, people tend to be more active, since their steps are not stable caused of not working.
+
